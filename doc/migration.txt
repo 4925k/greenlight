@@ -1,0 +1,17 @@
+// create migration script
+migrate create -seq -ext=.sql -dir=./migrations create_movies_table
+
+// execute migration script
+migrate -path=./migrations -database=$GREENLIGHT_DB_DSN up
+
+// check version
+migrate -path=./migrations -database=$EXAMPLE_DSN version
+
+// go up or down to specific version
+migrate -path=./migrations -database=$EXAMPLE_DSN goto 1
+
+// roll back mirgration
+migrate -path=./migrations -database =$EXAMPLE_DSN down 1
+
+// force a version
+migrate -path=./migrations -database=$EXAMPLE_DSN force 1
