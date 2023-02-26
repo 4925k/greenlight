@@ -1,8 +1,10 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/4925k/greenlight/internal/validator"
@@ -60,7 +62,10 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 
 	var movie Movie
 
-	err := m.DB.QueryRow(query, id).Scan(
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&movie.ID,
 		&movie.CreatedAt,
 		&movie.Title,
@@ -83,7 +88,7 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 
 // Update updates a specific record
 func (m MovieModel) Update(movie *Movie) error {
-	query := `UPDATE movies SET title = $1, year = $2, runtime = $3, genres = $4, version = version +1 WHERE id = $5 RETURNING version`
+	query := `UPDATE movies SET title = $1, year = $2, runtime = $3, genres = $4, version = version +1 WHERE id = $5 and version = $6 RETURNING version`
 
 	args := []interface{}{
 		movie.Title,
@@ -91,9 +96,20 @@ func (m MovieModel) Update(movie *Movie) error {
 		movie.Runtime,
 		pq.Array(movie.Genres),
 		movie.ID,
+		movie.Version,
 	}
 
-	return m.DB.QueryRow(query, args...).Scan(&movie.Version)
+	err := m.DB.QueryRow(query, args...).Scan(&movie.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Delete helps to delete a specific record
@@ -119,4 +135,59 @@ func (m MovieModel) Delete(id int64) error {
 	}
 
 	return nil
+}
+
+func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, Metadata, error) {
+	// stmt := `SELECT id, created_at, title, year, runtime, genres, version FROM movies
+	// WHERE (LOWER(title) = LOWER($1) OR $1 = '')
+	// AND (genres @> $2 OR $2 = '{}')
+	// ORDER BY id`
+
+	stmt := fmt.Sprintf(`SELECT COUNT(*) OVER(), id, created_at, title, year, runtime, genres, version FROM movies
+				WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '') 
+						AND (genres @> $2 OR $2 = '{}')
+				ORDER BY %s %s, id ASC
+				LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []interface{}{title, pq.Array(genres), filters.limit(), filters.offset()}
+
+	rows, err := m.DB.QueryContext(ctx, stmt, args...)
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+	defer rows.Close()
+
+	totalRecords := 0
+	movies := []*Movie{}
+
+	for rows.Next() {
+		var movie Movie
+
+		err := rows.Scan(
+			&totalRecords,
+			&movie.ID,
+			&movie.CreatedAt,
+			&movie.Title,
+			&movie.Year,
+			&movie.Runtime,
+			pq.Array(&movie.Genres),
+			&movie.Version,
+		)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+
+		movies = append(movies, &movie)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+
+	return movies, metadata, nil
 }
