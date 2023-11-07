@@ -1,0 +1,37 @@
+package main
+
+import "net/http"
+
+func (app *application) logError(r *http.Request, err error) {
+	app.logger.Println(err)
+}
+
+// errorResponse helps to send error response for the APIs
+func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, status int, message interface{}) {
+	env := envelope{
+		"error": message,
+	}
+
+	err := app.writeJSON(w, status, env, nil)
+	if err != nil {
+		app.logError(r, err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
+// serverErrorResponse will be used when the app encounters runtime issues.
+func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
+	app.logError(r, err)
+
+	app.errorResponse(w, r, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+}
+
+// notFoundResponse will be used to return 404 not found code to client
+func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusNotFound, http.StatusText(http.StatusNotFound))
+}
+
+// methodNotAllowed will be used to send 405 method not allowed to client
+func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
+}
