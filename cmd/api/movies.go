@@ -10,7 +10,21 @@ import (
 // createMovieHandler will create a new movie entry
 // curl -X POST localhost:4000/v1/movies
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "create a movie")
+	var input struct {
+		Title   string   `json:"title,omitempty"`
+		Year    int32    `json:"year,omitempty"`
+		Runtime int32    `json:"runtime,omitempty"`
+		Genres  []string `json:"genres,omitempty"`
+	}
+
+	// json.Unmarshal() requires about 80% more memory than json.Decoder, as well as being a tiny bit slower
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r)
+		return
+	}
+
+	fmt.Fprintf(w, "%+v\n", input)
 }
 
 // showMovieHandler will return details about the given movie id

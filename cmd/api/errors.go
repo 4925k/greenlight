@@ -35,3 +35,8 @@ func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request)
 func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
 }
+
+// badRequestResponse will be used to send a bad request response
+func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+}
