@@ -37,6 +37,6 @@ func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request)
 }
 
 // badRequestResponse will be used to send a bad request response
-func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request) {
-	app.errorResponse(w, r, http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
+	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
 }
