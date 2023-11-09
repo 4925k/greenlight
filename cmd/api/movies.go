@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/4925k/greenlight/internal/data"
+	"github.com/4925k/greenlight/internal/validator"
 	"net/http"
 	"time"
 )
@@ -10,6 +11,15 @@ import (
 // createMovieHandler will create a new movie entry
 // curl -X POST localhost:4000/v1/movies
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
+	/*
+		The problem with decoding directly into a Movie struct is that a client could provide the
+		keys id and version in their JSON request, and the corresponding values would be
+		decoded without any error into the ID and Version fields of the Movie struct — even though
+		we don’t want them to be. We could check the necessary fields in the Movie struct after the
+		event to make sure that they are empty, but that feels a bit hacky, and decoding into an
+		intermediary struct (like we are in our handler) is a cleaner, simpler, and more robust
+		approach — albeit a little bit verbose
+	*/
 	var input struct {
 		Title   string       `json:"title,omitempty"`
 		Year    int32        `json:"year,omitempty"`
@@ -21,6 +31,21 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	movie := &data.Movie{
+		Title:   input.Title,
+		Year:    input.Year,
+		Runtime: input.Runtime,
+		Genres:  input.Genres,
+	}
+
+	// Validation process
+	v := validator.New()
+	data.ValidateMovie(v, movie)
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
