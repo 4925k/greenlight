@@ -1,0 +1,53 @@
+INSTALLATION
+
+Mac
+brew install postgresql
+
+Linux
+sudo apt install postgresql
+
+Windows
+choco install postgresql
+
+CHECK VERSION
+psql --version
+
+GET PASSWORD
+cat /etc/passwd | grep 'postgres
+
+LOG IN
+sudo -u postgres psq
+
+SQL COMMANDS
+
+USER STATUS
+SELECT current_user;
+
+CREATE DATABASE
+CREATE DATABASE greenlight;
+
+CONNECT TO DATABASE
+ \c greenlight
+
+CREATE USER
+CREATE ROLE greenlight WITH LOGIN PASSWORD 'pa55word';
+
+psql -h localhost -d postgres
+
+ADD EXTENSION
+CREATE EXTENSION IF NOT EXISTS citex;
+
+CONNECT THROUGH USER
+psql --host=localhost --dbname=greenlight --username=greenlight
+
+GET LOCATION OF CONFIG FILE
+sudo -u postgres psql -c 'SHOW config_file;'
+
+LOGIN WITH DB AND USER
+psql --host=localhost --dbname=greenlight --username=greenlight
+
+NOTE
+To start postgresql@14 now and restart at login:
+  brew services start postgresql@14
+Or, if you don't want/need a background service you can just run:
+  /opt/homebrew/opt/postgresql@14/bin/postgres -D /opt/homebrew/var/postgresql@14
