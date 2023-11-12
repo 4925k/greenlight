@@ -66,7 +66,7 @@ func main() {
 		logger: logger,
 	}
 
-	// create a HTTP server
+	// create an HTTP server
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.port),
 		Handler:      app.routes(),
