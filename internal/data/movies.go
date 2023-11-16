@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/4925k/greenlight/internal/validator"
 	"github.com/lib/pq"
 	"time"
@@ -111,11 +112,11 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 		the generated query term matches the lexemes. To continue the example,
 		the query term 'the' & 'club' will match rows which contain both lexemes 'the' and 'club'
 	*/
-	query := `SELECT id, created_at, title, year, runtime, genres, version 
+	query := fmt.Sprintf(`SELECT id, created_at, title, year, runtime, genres, version 
 				FROM movies
 				WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
 				AND (genres @> $2 OR $2 = '{}')
-				ORDER BY $1 `
+				ORDER BY %s %s, id ASC`, filters.sortColumn(), filters.sortDirection())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
