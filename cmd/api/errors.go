@@ -52,3 +52,7 @@ func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.
 func (app *application) editConflictResponse(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusConflict, http.StatusText(http.StatusConflict))
 }
+
+func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
+}
