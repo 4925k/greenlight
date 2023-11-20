@@ -35,7 +35,7 @@ CREATE ROLE greenlight WITH LOGIN PASSWORD 'pa55word';
 psql -h localhost -d postgres
 
 ADD EXTENSION
-CREATE EXTENSION IF NOT EXISTS citex;
+CREATE EXTENSION IF NOT EXISTS citext;
 
 CONNECT THROUGH USER
 psql --host=localhost --dbname=greenlight --username=greenlight
