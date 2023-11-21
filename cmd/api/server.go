@@ -38,9 +38,15 @@ func (app *application) serve() error {
 		// The Shutdown() method does not wait for any background tasks to complete, nor does it
 		// close hijacked long-lived connections like WebSockets.
 		// you will need to implement your own logic to coordinate a graceful shutdown of these things.
-		shutdownError <- srv.Shutdown(ctx)
+		err := srv.Shutdown(ctx)
+		if err != nil {
+			shutdownError <- err
+		}
 
-		os.Exit(0)
+		app.logger.PrintInfo("completing background tasks", map[string]string{"addr": srv.Addr})
+
+		app.wg.Wait()
+		shutdownError <- nil
 	}()
 
 	app.logger.PrintInfo("starting server", map[string]string{
