@@ -94,3 +94,19 @@ func (m TokenModel) Insert(token *Token) error {
 	_, err := m.DB.ExecContext(ctx, query, args...)
 	return err
 }
+
+func (m TokenModel) DeleteAllForUser(tokenScope string, userID int64) error {
+	query := `DELETE FROM tokens WHERE scope = $1 AND user_id = $2`
+
+	args := []interface{}{tokenScope, userID}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
