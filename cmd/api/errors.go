@@ -56,3 +56,7 @@ func (app *application) editConflictResponse(w http.ResponseWriter, r *http.Requ
 func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
 }
+
+func (app *application) invalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusUnauthorized, "invalid authentication credentials")
+}
