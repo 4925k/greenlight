@@ -14,6 +14,10 @@ var (
 	ErrDuplicateEmail = errors.New("duplicate email")
 )
 
+// AnonymousUser is used for when there's no authorization header provided
+// this represents an inactive user with no ID, name or credentials
+var AnonymousUser = &User{}
+
 type User struct {
 	ID        int64     `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -31,6 +35,11 @@ type password struct {
 
 type UserModel struct {
 	DB *sql.DB
+}
+
+// IsAnonymous checks if the user is anonymous
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
 }
 
 func (p *password) Set(plaintext string) error {
