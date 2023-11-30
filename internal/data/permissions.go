@@ -23,7 +23,7 @@ func (p Permissions) Include(code string) bool {
 }
 
 // GetAllForUser will fetch the permissions of the given user
-func (m PermissionModel) GetAllForUser(userID string) (Permissions, error) {
+func (m PermissionModel) GetAllForUser(userID int64) (Permissions, error) {
 	query := `SELECT permissions.code
 				FROM permissions
 				INNER JOIN users_permissions ON users_permissions.permission_id = permissions.id
