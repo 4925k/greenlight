@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
+	"expvar"
 	"flag"
 	"github.com/4925k/greenlight/internal/data"
 	"github.com/4925k/greenlight/internal/jsonlog"
 	"github.com/4925k/greenlight/internal/mailer"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -97,6 +99,18 @@ func main() {
 	}
 	defer db.Close()
 	logger.PrintInfo("database connection established", nil)
+
+	// publish variables to expvar handler
+	expvar.NewString("version").Set(version)              // app version
+	expvar.Publish("goroutines", expvar.Func(func() any { // go routines
+		return runtime.NumGoroutine()
+	}))
+	expvar.Publish("database", expvar.Func(func() any { // database stats
+		return db.Stats()
+	}))
+	expvar.Publish("timestamp", expvar.Func(func() any { // unix timestamp
+		return time.Now().Unix()
+	}))
 
 	// instance of the application struct
 	app := &application{
