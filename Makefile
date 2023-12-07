@@ -13,13 +13,31 @@ help:
 confirm:
 	@echo -n 'Are you sure? [y/n]' && read ans && [ $${ans:-n} = y ]
 
+## BUILD
+
+current_time = $(shell date  +"%Y-%m-%dT%H:%M:%SZ")
+git_description = $(shell git describe --always --dirty --tags --long)
+linker_flags = '-s -X main.buildTime=${current_time} -X main.version=${git_description}'
+
+## build/api: build the cmd/api application
+.PHONY: build/api
+build/api:
+	@echo 'Building cmd/api'
+	go build -ldflags=${linker_flags} -o=./bin/api ./cmd/api
+
+
+
+.PHONY: build/api/linux
+build/api/linux:
+	@echo 'Building cmd/api for linux'
+	GOOS=linux GOARCH=amd64 go build -ldflags=${linker_flags} -o=./bin/linux_amd64/api ./cmd/api
 
 ## DEVELOPMENT
 
 ## run/api: run the cmd/api application
 .PHONY: run/api
 run/api:
-	go run ./cmd/api -db-dsn=${GREENLIGHT_DS_DSN}
+	go run ./cmd/api -db-dsn=${GREENLIGHT_DB_DSN}
 
 ## db/up helps to start the local db
 /PHONY: db/up
@@ -41,7 +59,7 @@ db/migrations/new:
 .PHONY: db/migrations/up
 db/migrations/up: confirm
 	@echo 'Running up migration'
-	migrate -path ./migrations -database ${GREENLIGHT_DB_DSN} up
+	migrate -path ./migrations -database=${GREENLIGHT_DB_DSN} up
 
 ## QUALITY CONTROL
 ## audit: tidy dependencies and format, and test all code
@@ -56,3 +74,12 @@ audit:
 	go vet ./...
 	@echo 'Running tests...'
 	go test -race -vet=off ./...
+
+## vendor: tidy and vendor dependencies
+.PHONY: vendor
+vendor:
+	@echo 'Tidying and verifying module dependencies'
+	go mod tidy
+	go mod verify
+	@echo 'Vendoring dependencies...'
+	go mod vendor
