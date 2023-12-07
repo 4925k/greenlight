@@ -36,7 +36,7 @@ func main() {
 	addr := flag.String("addr", ":9000", "Server address")
 	flag.Parse()
 
-	log.Printf("starting server at %s", addr)
+	log.Printf("starting server at %s", *addr)
 
 	err := http.ListenAndServe(*addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(html))
