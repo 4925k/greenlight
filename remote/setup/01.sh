@@ -35,6 +35,9 @@ useradd --create-home --shell "/bin/bash" --groups sudo "${USERNAME}"
 passwd --delete "${USERNAME}"
 chage --lastday 0 "${USERNAME}"
 
+# copy ssh keys from root to new user
+rsync --archive --chown=${USERNAME}:${USERNAME} /root/.ssh /home/${USERNAME}
+
 # configure firewall to allow SSH, HTTP and HTTPS traffic
 ufw allow 22
 ufw allow 80/tcp
@@ -43,9 +46,11 @@ ufw --force enable
 
 # install fail2ban
 apt --yes install fail2ban
+apt --yes install curl
 
 # install migrate tools
-curl -L https://github.com/golang-migrate/migrate/releases/download/v4.14.1/migrate.linux-amd64.tar.gz | tar xvzmv migrate.linux-amd64 /usr/local/bin/migrate
+curl -L https://github.com/golang-migrate/migrate/releases/download/$version/migrate.$os-$arch.tar.gz | tar xvzmv migrate.linux-amd64 /usr/local/bin/migrate
+mv migrate.linux-amd64 /usr/local/bin/migrate
 
 # install postgres
 apt --yes install postgresql
@@ -56,7 +61,7 @@ sudo -i -u postgres psql -d greenlight -c "CREATE EXTENSION IF NOT EXISTS citext
 sudo -i -u postgres psql -d greenlight -c "CREATE ROLE greenlight WITH LOGIN PASSWORD '${DB_PASSWORD}'"
 
 # add database dsn to environment variable
-echo "GREENLIGHT_DB_DSN='postgres://greenlight:${DB_PASSWORD}@localhost/greenlight?sslmode=disable"
+echo "GREENLIGHT_DB_DSN='postgres://greenlight:${DB_PASSWORD}@localhost/greenlight?sslmode=disable" >> /etc/environment
 
 # install caddy
 apt --yes install -y debian-keyring debian-archive-keyring apt-transport-https
