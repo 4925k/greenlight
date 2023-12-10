@@ -8,6 +8,8 @@ TIMEZONE=America/New_York
 
 # username
 USERNAME=greenlight
+OS=$(uname)
+ARCH=$(dpkg --print-architecture)
 
 # get database password
 read -p "Enter password for greenlight DB user:" DB_PASSWORD
@@ -17,6 +19,11 @@ export LC_ALL=en_US.UTF-8
 
 ## SCRIPT
 
+
+echo "[*] Script starting"
+
+echo "[*] Updating and Upgrading System"
+
 # enable the universe repo
 add-apt-repository --yes universe
 
@@ -24,19 +31,26 @@ add-apt-repository --yes universe
 apt update
 apt --yes -o Dpkg::Options::="--force-confnew" upgrade
 
+echo "[*] Setting time and locale"
+
 # set system timezone and install locales
 timedatectl set-timezone ${TIMEZONE}
 apt --yes install locales-all
 
+echo "[*] Creating user"
+
 # add new user with sudo privileges
-useradd --create-home --shell "/bin/bash" --groups sudo "${USERNAME}"
+useradd --create-home --shell "/bin/bash" --groups sudo ${USERNAME}
 
 # force password reset
-passwd --delete "${USERNAME}"
-chage --lastday 0 "${USERNAME}"
+passwd --delete ${USERNAME}
+chage --lastday 0 ${USERNAME}
+
+echo "[*] Setup ssh and firewall rules"
 
 # copy ssh keys from root to new user
-rsync --archive --chown=${USERNAME}:${USERNAME} /root/.ssh /home/${USERNAME}
+cp /root/.ssh/* /home/${USERNAME}
+chown -R ${USERNAME}:${USERNAME} .ssh
 
 # configure firewall to allow SSH, HTTP and HTTPS traffic
 ufw allow 22
@@ -45,12 +59,16 @@ ufw allow 443/tcp
 ufw --force enable
 
 # install fail2ban
-apt --yes install fail2ban
-apt --yes install curl
+apt -y install fail2ban
+apt -y install curl
+
+echo "[*] install necessary packages"
 
 # install migrate tools
-curl -L https://github.com/golang-migrate/migrate/releases/download/$version/migrate.$os-$arch.tar.gz | tar xvzmv migrate.linux-amd64 /usr/local/bin/migrate
-mv migrate.linux-amd64 /usr/local/bin/migrate
+curl -L https://github.com/golang-migrate/migrate/releases/download/v4.16.2/migrate.linux-amd64.tar.gz | tar xvz
+mv migrate /usr/local/bin/migrate
+
+echo "[*] go-migrate installed"
 
 # install postgres
 apt --yes install postgresql
@@ -59,16 +77,20 @@ apt --yes install postgresql
 sudo -i -u postgres psql -c "CREATE DATABASE greenlight"
 sudo -i -u postgres psql -d greenlight -c "CREATE EXTENSION IF NOT EXISTS citext"
 sudo -i -u postgres psql -d greenlight -c "CREATE ROLE greenlight WITH LOGIN PASSWORD '${DB_PASSWORD}'"
+sudo -i -u postgres psql -d greenlight -c "GRANT ALL ON SCHEMA public TO ${USERNAME}"
+
 
 # add database dsn to environment variable
-echo "GREENLIGHT_DB_DSN='postgres://greenlight:${DB_PASSWORD}@localhost/greenlight?sslmode=disable" >> /etc/environment
+echo "GREENLIGHT_DB_DSN='postgres://greenlight:${DB_PASSWORD}@localhost/greenlight?sslmode=disable'" >> /etc/environment
+
+echo "[*] postgres setup done"
 
 # install caddy
-apt --yes install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -L https://dl.cloudsmith.io/public/caddy/stable/gpg.key | sudo apt-key add -
-curl -L https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt | sudo tee -a /etc/apt/sources.list.d/caddy-stable.list
-apt update
-apt --yes install caddy
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt -y install caddy
 
-echo "Script complete! Rebooting"
+echo "[*][*] Script complete! Rebooting"
 reboot

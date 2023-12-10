@@ -83,3 +83,27 @@ vendor:
 	go mod verify
 	@echo 'Vendoring dependencies...'
 	go mod vendor
+
+
+## PRODUCTION
+
+production_host_ip = "161.35.224.145"
+
+## production/connect: connect to the production server
+.PHONY: production/connect
+production/connect:
+	ssh greenlight@${production_host_ip}
+
+
+## production/deploy/api: deploy the api to production
+.PHONY: production/deploy/api
+production/deploy/api:
+	rsync -P ./bin/linux_amd64/api greenlight@${production_host_ip}:/home/greenlight
+	rsync -rP --delete ./migrations greenlight@${production_host_ip}:/home/greenlight
+	rsync -P ./remote/production/api.service greenlight@${production_host_ip}:/home/greenlight
+	ssh -t greenlight@${production_host_ip} '\
+	migrate -path /home/greenlight/migrations -database $$GREENLIGHT_DB_DSN up \
+	&& sudo mv /home/greenlight/api.service /etc/systemd/system/ \
+	&& sudo systemctl enable api \
+	&& sudo systemctl restart api \
+	'
