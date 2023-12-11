@@ -1,0 +1,4 @@
+http://161.35.224.145 {
+    respond /debug/* 403
+    reverse_proxy greenlight localhost:4000
+}
