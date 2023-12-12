@@ -110,11 +110,11 @@ func (app *application) createPasswordResetToken(w http.ResponseWriter, r *http.
 	}
 
 	app.background(func() {
-		data := map[string]interface{}{
+		payload := map[string]interface{}{
 			"passwordResetToken": token.Plaintext,
 		}
 
-		err = app.mailer.Send(user.Email, "token_password-reset.tmpl", data)
+		err = app.mailer.Send(user.Email, "token_password-reset.tmpl", payload)
 		if err != nil {
 			app.logger.PrintError(err, nil)
 		}
@@ -126,4 +126,71 @@ func (app *application) createPasswordResetToken(w http.ResponseWriter, r *http.
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
+}
+
+func (app *application) createActivationToken(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Email string `json:"email"`
+	}
+
+	// get email from request
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	// validate email
+	v := validator.New()
+	if data.ValidateEmail(v, input.Email); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// get user details
+	user, err := app.models.Users.GetByEmail(input.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoRecordFound):
+			v.AddError("email", "no matching email found")
+			app.failedValidationResponse(w, r, v.Errors)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	// check user activated status
+	if user.Activated {
+		v.AddError("email", "user has already been activated")
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// email user with activation token
+	app.background(func() {
+		load := map[string]interface{}{
+			"activationToken": token.Plaintext,
+		}
+
+		err = app.mailer.Send(user.Email, "token_activation.tmpl", load)
+		if err != nil {
+			app.logger.PrintError(err, nil)
+		}
+	})
+
+	// reply to request
+	env := envelope{"message": "an email will be sent to you with activation guide"}
+	err = app.writeJSON(w, http.StatusOK, env, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
 }
